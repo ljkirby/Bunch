@@ -58,9 +58,14 @@ void
 init()
 {
    currentPopulation_d = new Population(getGraph());
-   // MARK
-   //currentPopulation_d.genPopulation(getPopSize());
-   currentPopulation_d.genPopulationWithSetNumberOfClusters(getPopSize());
+   if(getGraph().numberOfClusters_d == 0)
+   {
+     currentPopulation_d.genPopulation(getPopSize());
+   }
+   else
+   {
+     currentPopulation_d.genPopulationWithSetNumberOfClusters(getPopSize());
+   }
 
    if (getBestCluster() == null) {
       setBestCluster(currentPopulation_d.getCluster(0).cloneCluster());
