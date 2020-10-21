@@ -1,2 +1,7 @@
 /src/main/java/bunch/CVS/
 /target/
+*Bunch.iml*
+tags
+.DS_STORE
+*.sw*
+*.log*
