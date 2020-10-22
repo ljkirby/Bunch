@@ -3,130 +3,172 @@ package bunch;
 import java.io.*;
 import java.lang.reflect.*;
 import java.util.*;
+import java.io.File;
+import java.util.regex.Pattern;
+import java.awt.*;
+import javax.swing.*;
 
-//import bunch.*;
 import bunch.api.*;
 import bunch.engine.*;
 
 public class RunBunch {
+    /** Creates parent directories if necessary. Then returns file */
+    private static File fileWithDirectoryAssurance(String directory, String filename) {
+        File dir = new File(directory);
+        if (!dir.exists()) dir.mkdirs();
+        return new File(directory + "/" + filename);
+    }
+
+    private static JProgressBar createProgressBar(int MAX) {
+        final JFrame frame = new JFrame("JProgress Demo");
+
+        // creates progress bar
+        final JProgressBar pb = new JProgressBar();
+        pb.setMinimum(0);
+        pb.setMaximum(MAX);
+        pb.setStringPainted(true);
+
+        // add progress bar
+        frame.setLayout(new FlowLayout());
+        frame.getContentPane().add(pb);
+
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(300, 200);
+        frame.setVisible(true);
+        return pb;
+    }
+
+    private static void updateProgressBar(JProgressBar progressBar, int progress) {
+        final int updateValue = progress;
+        final JProgressBar pb = progressBar;
+        try {
+            SwingUtilities.invokeLater(new Runnable() {
+                public void run() {
+                    pb.setValue(updateValue);
+                }
+            });
+        } catch (Exception e) {
+            System.out.println("Error!");
+            System.out.println(e.getMessage());
+            System.out.println("Last value: " + Integer.toString(updateValue));
+        }
+    }
 
     public static void main(String[] args) throws Exception {
-//        if (args.length != 2) {
-//            System.out.println("Usage: java RunBunch <file-name> <dest>");
-//            System.exit(1);
-//        }
+        //runBunch("everest", 4, "results6");
+        ///runBunch("JPetstore", 4, "results6");
+        runBunch("PartsUnlimitedMRP", 5, "results7");
+    }
 
-
-        /*
-         * For each relationshipType in relationships:
-         *   set relationshipType.weight = 100%
-         *   produce weighted graph
-         *   relationshipMQValue = Bunch.getMQValue()
-         *   if(MQValue == 1.0):
-         *    disregardedRelationships.add(relationshipType)
-         *
-         *    highestMQValue = 1;
-         *    highestMoJoFMValue = 1;
-         *    bestResults = [];
-         *
-         * list = Generate all possible lists of length (len(relationships - disregardedRelationships)) that sum to 100
-         * for each row in list:
-         * for relationshipType in relationshipTypes:
-         *  i = len(row)
-         *  while i >= 0:
-         * if relationshipType in disregardedRelationshipTypes:
-         *  continue
-         * else:
-         * relationshipType.weight = row[i]
-         * i--
-         * [outputGraph, MQ, MoJoFMD] = generateWeightedGraph(weights)
-         * if MQ > highestMQValue:
-         *  bestResults = outputGraph
-         *  highestMQValue = MQ
-         * else:
-         */
-
-        //System.out.println(args[0]);
+    public static void runBunch(String projectName, int numberOfClusters, String outDir) throws Exception {
+        System.out.println(projectName + "==========================");
 
         BunchAPI api = new BunchAPI();
         BunchProperties bp = new BunchProperties();
-        String inputFile = args[0];
-        String outputFile = args[1];
+        String PROJECT_NAME = projectName;
+        String NUMBER_OF_CLUSTERS = Integer.toString(numberOfClusters);
+        int DIVISOR = 20;
+        int MAX_PROGRESS = 1771;
+        //final JProgressBar progressBar = createProgressBar(MAX_PROGRESS);
 
-        System.out.println(args[0]);
-        System.out.println(args[1]);
+        String inputGraphsPath = "/Users/ljkirby/repos/wem-server/weightGraphScripts/allWeightedGraphs/" + PROJECT_NAME + "/";
+        String resultGraphsPath = "/Users/ljkirby/repos/wem-server/weightGraphScripts/" + outDir + "/" + PROJECT_NAME + "/";
 
-        //bp.setProperty(BunchProperties.MDG_INPUT_FILE_NAME, args[0]);
+        String inputFile = inputGraphsPath;
+        String outputFile = resultGraphsPath;
+        File output;
 
-        bp.setProperty(BunchProperties.MDG_INPUT_FILE_NAME, inputFile);
-        bp.setProperty(BunchProperties.OUTPUT_FORMAT, BunchProperties.TEXT_OUTPUT_FORMAT);
-        //bp.setProperty(BunchProperties.OUTPUT_DIRECTORY, args[1]);
-        bp.setProperty(BunchProperties.OUTPUT_DIRECTORY, outputFile);
-        bp.setProperty(BunchProperties.ECHO_RESULTS_TO_CONSOLE, "True");
+        File resultFile = fileWithDirectoryAssurance(resultGraphsPath, "results.csv");
+        FileWriter resultWriter = new FileWriter(resultFile.getAbsolutePath());
+        resultWriter.append("file_name,MQ_Value,static,dynamic,class_names,class_terms,commits,contributors\n");
 
-        bp.setProperty(BunchProperties.MQ_CALCULATOR_CLASS, "bunch.TurboMQ");
-        bp.setProperty(BunchProperties.CLUSTERING_APPROACH, BunchProperties.AGGLOMERATIVE);
-
-        //added
-        bp.setProperty(BunchProperties.MDG_OUTPUT_MODE, BunchProperties.OUTPUT_TREE);
-        bp.setProperty(BunchProperties.ALG_HC_POPULATION_SZ, "100");
-        bp.setProperty(BunchProperties.ALG_HC_HC_PCT, "50");
-        bp.setProperty(BunchProperties.ALG_HC_RND_PCT, "100");
-        if(args.length == 3)
+        int progress = 0;
+        for(int i = 0; i <= DIVISOR; i++)
         {
-            System.out.println(args[2]);
-            bp.setProperty(BunchProperties.FIX_NUMBER_OF_CLUSTERS, "True");
-            bp.setProperty(BunchProperties.NUMBER_OF_CLUSTERS, args[2]);
+            String currentPath = inputGraphsPath + Integer.toString(i) + '/';
+            File currentInputDir = new File(currentPath);
+            File [] files = currentInputDir.listFiles();
+            if (files != null)
+            {
+                for(File file : files)
+                {
+                    inputFile = file.getAbsolutePath();
+                    String outputFileName = file.getName();
+                    output = fileWithDirectoryAssurance(resultGraphsPath + Integer.toString(i) + '/', outputFileName);
+                    outputFile = output.getAbsolutePath();
+
+                    bp.setProperty(BunchProperties.MDG_INPUT_FILE_NAME, inputFile);
+                    bp.setProperty(BunchProperties.OUTPUT_FORMAT, BunchProperties.TEXT_OUTPUT_FORMAT);
+                    bp.setProperty(BunchProperties.OUTPUT_DIRECTORY, outputFile);
+                    bp.setProperty(BunchProperties.ECHO_RESULTS_TO_CONSOLE, "True");
+
+                    bp.setProperty(BunchProperties.MQ_CALCULATOR_CLASS, "bunch.TurboMQ");
+                    //bp.setProperty(BunchProperties.CLUSTERING_APPROACH, BunchProperties.AGGLOMERATIVE);
+                    bp.setProperty(BunchProperties.CLUSTERING_APPROACH, BunchProperties.ONE_LEVEL);
+
+                    //added
+                    bp.setProperty(BunchProperties.MDG_OUTPUT_MODE, BunchProperties.OUTPUT_TREE);
+                    bp.setProperty(BunchProperties.ALG_HC_POPULATION_SZ, "200");
+                    bp.setProperty(BunchProperties.ALG_HC_HC_PCT, "75");
+                    bp.setProperty(BunchProperties.ALG_HC_RND_PCT, "90");
+                    bp.setProperty(BunchProperties.FIX_NUMBER_OF_CLUSTERS, "True");
+                    bp.setProperty(BunchProperties.NUMBER_OF_CLUSTERS, NUMBER_OF_CLUSTERS);
+
+                    api.setProperties(bp);
+                    api.run();
+
+                    Hashtable results = api.getResults();
+                    int medLvlGraphIndex = Integer.parseInt((String) results.get("MedianLevelGraph"));
+                    Hashtable [] resultLevels = (Hashtable[])results.get(BunchAPI.RESULT_CLUSTER_OBJS);
+
+                    String MQResult = (String) ((Hashtable) resultLevels[medLvlGraphIndex]).get(BunchAPI.MQVALUE);
+
+                    String[] weights = file.getName().replace(".mdg", "").split(Pattern.quote("_"));
+                    String staticWeight = Integer.toString(Integer.parseInt(weights[0]) * 100 / DIVISOR);
+                    String dynamicWeight = Integer.toString(Integer.parseInt(weights[2]) * 100 / DIVISOR);
+                    String classNamesWeight = Integer.toString(Integer.parseInt(weights[4]) * 100 / DIVISOR);
+                    String classTermsWeight = Integer.toString(Integer.parseInt(weights[6]) * 100 / DIVISOR);
+                    String commitsWeight = Integer.toString(Integer.parseInt(weights[8]) * 100 / DIVISOR);
+                    String contributorsWeight = Integer.toString(Integer.parseInt(weights[10]) * 100 / DIVISOR);
+
+                    resultWriter.append(file.getName() + ',' +
+                            MQResult + ',' +
+                            staticWeight + ',' +
+                            dynamicWeight + ',' +
+                            classNamesWeight + ',' +
+                            classTermsWeight + ',' +
+                            commitsWeight + ',' +
+                            contributorsWeight +
+                            '\n'
+                    );
+                    resultWriter.flush();
+
+                    BunchEngine engine = null;
+                    Field field = api.getClass().getDeclaredField("engine");
+                    field.setAccessible(true);
+                    engine = (BunchEngine) field.get(api);
+
+                    GraphOutput graphOutput = new GraphOutputFactory().getOutput("Text");
+                    graphOutput.setBaseName(inputFile);
+                    graphOutput.setBasicName(inputFile);
+                    outputFileName = graphOutput.getBaseName();
+                    String outputPath = outputFile;
+                    if (outputPath != null) {
+                        File f = new File(graphOutput.getBaseName());
+                        String filename = f.getName();
+                        outputFileName = outputPath + filename;
+                    }
+                    graphOutput.setCurrentName(outputFileName);
+                    graphOutput.setOutputTechnique(3);
+                    graphOutput.setGraph(engine.getBestGraph());
+                    graphOutput.write();
+
+                    progress++;
+                    //updateProgressBar(progressBar, progress);
+                }
+            }
         }
-        else
-        {
-            bp.setProperty(BunchProperties.FIX_NUMBER_OF_CLUSTERS, "False");
-        }
-
-        api.setProperties(bp);
-        api.run();
-
-        Hashtable results = api.getResults();
-        int medLvlGraphIndex = Integer.parseInt((String) results.get("MedianLevelGraph"));
-        Hashtable [] resultLevels = (Hashtable[])results.get(BunchAPI.RESULT_CLUSTER_OBJS);
-
-        String MQResult = (String) ((Hashtable) resultLevels[medLvlGraphIndex]).get(BunchAPI.MQVALUE);
-        System.out.println(MQResult);
-
-        //Output detailed information for each level
-        for(int i = 0; i < resultLevels.length; i++)
-        {
-            Hashtable lvlResults = resultLevels[i];
-            System.out.println("***** LEVEL "+i+"*****");
-            String mq = (String)lvlResults.get(BunchAPI.MQVALUE);
-            String depth = (String)lvlResults.get(BunchAPI.CLUSTER_DEPTH);
-            String numC = (String)lvlResults.get(BunchAPI.NUMBER_CLUSTERS);
-            System.out.println(" MQ Value = " + mq);
-            System.out.println(" Best Cluster Depth = " + depth);
-            System.out.println(" Number of Clusters in Best Partition = " +
-                    numC);
-            System.out.println();
-        }
-
-        BunchEngine engine = null;
-        Field field = api.getClass().getDeclaredField("engine");
-        field.setAccessible(true);
-        engine = (BunchEngine) field.get(api);
-        double MQVal = engine.getBestGraph().getObjectiveFunctionValue();
-
-        GraphOutput graphOutput = new GraphOutputFactory().getOutput("Text");
-        graphOutput.setBaseName(inputFile);
-        graphOutput.setBasicName(inputFile);
-        String outputFileName = graphOutput.getBaseName();
-        String outputPath = outputFile;
-        if (outputPath != null) {
-            File f = new File(graphOutput.getBaseName());
-            String filename = f.getName();
-            outputFileName = outputPath + filename;
-        }
-        graphOutput.setCurrentName(outputFileName);
-        graphOutput.setOutputTechnique(3);
-        graphOutput.setGraph(engine.getBestGraph());
-        graphOutput.write();
+        resultWriter.flush();
+        resultWriter.close();
     }
 }
