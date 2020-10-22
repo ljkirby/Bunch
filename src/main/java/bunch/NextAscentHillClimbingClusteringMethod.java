@@ -172,6 +172,10 @@ getLocalMaxGraph(Cluster c)
         int currNode  = rndClustOrdering[i];
         int currClust = clusters[currNode];//c.getCluster(currNode);
         int tmpClust  = currClust;
+        if(c.getNumberNodesInCluster(currClust) <= 1)
+        {
+            continue;
+        }
 //System.out.println();
 //System.out.println("Current node = " + currNode + " current Cluster = " + currClust);
         int j=0;
